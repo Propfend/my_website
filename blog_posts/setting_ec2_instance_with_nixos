@@ -1,0 +1,88 @@
+This blog post demonstrates how to automatedly deploy a NixOS machine.
+# Terraform
+The AWS provider is easy to use and covers a real-world example. This example will use the EC2 example. In your `main.tf` set:
+```tf
+module "ec2" {
+  source = "../"
+
+  region        = "us-east-1"
+  instance_type = "t3.xlarge"
+  instance_name = "ubuntu"
+
+  most_recent           = true
+  ami_filter_name       = "ubuntu/images/hvm-ssd/ubuntu-jammy-22.04-amd64-server-*"
+  architecture          = "x86_64"
+  is_public             = true
+  is_free_tier_eligible = true
+  owners                = ["099720109477"]
+
+  virtualization_type = "hvm"
+
+  tenancy              = "default"
+  ssh_public_login_key = "~/.aws/keys/login_keys/instance.pub"
+  hostname             = "ubuntu"
+  user                 = "ubuntu"
+  template_path        = "../templates/user-data.yaml.tftpl"
+  app_inventory_name   = "localhost,"
+
+  # Run app
+  app_ansible_playbook_url             = "git@github.com:Propfend/ansible.git"
+  app_ansible_playbook_name            = "app.yml"
+  playbook_ssh_private_deploy_key      = "~/.aws/keys/deploy_keys/app"
+  playbook_ssh_private_deploy_key_path = "~/.ssh/id_ed25519"
+
+  # NixOS config
+  nixos_ssh_private_deploy_key = "~/.aws/keys/deploy_keys/nixos"
+  nixos_config_url             = "git@github.com:Propfend/nixos_config.git"
+
+  # EBS volume
+  ebs_volume_name = "MyEBSVolume"
+  ebs_volume_size = 10
+
+  # VPC
+  security_group_ids = []
+}
+
+output "public_ip" {
+  value       = module.ec2.public_ip
+  description = "The IPv4 address of the instance"
+}
+
+output "public_dns" {
+  value       = module.ec2.public_dns
+  description = "The public DNS name of the instance"
+}
+
+output "security_groups" {
+  value       = module.ec2.security_groups
+  description = "The security groups associated with the instance"
+}
+
+output "arn" {
+  value       = module.ec2.arn
+  description = "The ARN of the instance"
+}
+
+output "user" {
+  value       = module.ec2.tags["Name"]
+  description = "The user of the instance"
+}
+
+module "deploy" {
+  source                 = "github.com/nix-community/nixos-anywhere/terraform/all-in-one"
+  
+  nixos_system_attr      = "../templates#packages.x86_64-linux.ryoza"
+  nixos_partitioner_attr = "../templates#packages.x86_64-linux.ryoza-disko"
+
+  target_host            = module.ec2.public_ip
+  instance_id            = module.ec2.public_ip
+
+  install_ssh_key = file("~/.aws/keys/login_keys/instance")
+
+  deployment_ssh_key = file("~/.aws/keys/login_keys/instance")
+
+  target_user = "ryoza"
+
+  install_user = module.ec2.tags["Name"]
+}
+```
