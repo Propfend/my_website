@@ -1,0 +1,1 @@
+import{w as r,a as t,q as n}from"./chunk-PVWAREVJ-Cn9JO7py.js";const i=r(function(){const[s,e]=t.useState(!0);if(t.useEffect(()=>{fetch("../../blog_posts/*").then(o=>o.arrayBuffer()).then(o=>console.log(o)).catch(o=>{console.error("Error loading posts:",o),e(!1)})},[]),s)return n.jsx("div",{children:"Loading posts..."})});export{i as default};
